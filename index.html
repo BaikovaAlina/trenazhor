@@ -3,148 +3,142 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Тренажёр по математике · Уроки 5–6</title>
-<meta name="description" content="Интерактивный тренажёр по математике: закономерности и суммы последовательных чисел. Уроки 5–6, 5-й класс.">
+<title>Математика · Уроки 2–6 · Классные и домашние работы</title>
+<meta name="description" content="Классные и домашние работы по математике для 5-го класса: уроки 2–6 и интерактивный тренажёр с проверкой ответов.">
 <link rel="stylesheet" href="style.css">
+<style>
+  /* Стили страницы-меню (в дополнение к общей «тетради») */
+  .menu-note{
+    background:rgba(255,255,255,.65); border:2.5px solid var(--chalk); border-radius:12px;
+    padding:12px 20px 14px; margin:14px 0; font-size:14.5px; line-height:1.6;
+  }
+  .lesson-row{
+    display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+    background:rgba(255,255,255,.55); border:2px dashed #b9a97f; border-radius:14px;
+    padding:14px 20px; margin:12px 0;
+  }
+  .lesson-row .l-num{
+    display:inline-flex; background:var(--red); color:#fff; border-radius:10px;
+    min-width:42px; height:42px; padding:0 10px; align-items:center; justify-content:center;
+    font-size:19px; font-weight:bold; flex-shrink:0;
+  }
+  .lesson-row .l-info{flex:1; min-width:220px;}
+  .lesson-row .l-title{font-size:17.5px; font-weight:bold; color:#1f4634;}
+  .lesson-row .l-topic{font-size:14px; color:#7c6a4b;}
+  .lesson-row .l-links{display:flex; gap:10px; flex-wrap:wrap;}
+  .l-btn{
+    display:inline-block; text-decoration:none; text-align:center;
+    border:none; cursor:pointer; background:#1f4634; color:#fff;
+    font-family:inherit; font-size:15.5px; font-weight:bold;
+    padding:10px 20px; border-radius:12px;
+    box-shadow:3px 4px 0 rgba(31,70,52,.4); transition:transform .12s;
+  }
+  .l-btn:hover{transform:translateY(-2px);}
+  .l-btn.home{background:#8a7a5c; box-shadow:3px 4px 0 rgba(138,122,92,.4);}
+  .trainer-card{
+    background:
+      radial-gradient(1200px 400px at 20% 0%, rgba(255,255,255,.08), transparent 60%),
+      var(--chalk);
+    border-radius:12px; color:#F4FFF7; padding:24px 28px; margin:16px 0;
+    box-shadow:inset 0 0 40px rgba(0,0,0,.35), 0 12px 24px rgba(46,93,75,.35);
+    display:flex; gap:18px; align-items:center; flex-wrap:wrap;
+  }
+  .trainer-card .t-text{flex:1; min-width:230px;}
+  .trainer-card h3{font-size:clamp(19px,3vw,25px); margin-bottom:6px; color:#FFE28A;}
+  .trainer-card p{font-size:15px; color:#CDEBD9;}
+  .trainer-card .l-btn{background:#FFE28A; color:#3d2c07; box-shadow:3px 4px 0 rgba(0,0,0,.3);}
+</style>
 </head>
 <body>
 
 <div class="deck">
+  <div class="slide active">
+    <div class="margin-line"></div>
+    <div class="crumb">Подготовка к вступительным · олимпиадная математика · 5-й класс гимназии №610</div>
+    <h1>Математика · Уроки 2–6</h1>
+    <div class="topic">Классные и домашние работы · выбери урок и работу</div>
 
-  <!-- ================= ЭКРАН 1 · СТАРТ ================= -->
-  <section id="screen-start" class="screen">
-    <div class="slide active">
-      <div class="margin-line"></div>
-      <div class="crumb">Подготовка к вступительным · олимпиадная математика</div>
-      <h1>Тренажёр по математике</h1>
-      <div class="topic">Уроки 5–6 · 5-й класс гимназии №610 · выбери вариант и работай</div>
-
-      <!-- Имя ученика -->
-      <div class="board">
-        <div class="formula">Как тебя зовут?</div>
-        <div class="note">Имя сохранится в браузере — в следующий раз можно не вводить</div>
+    <!-- Тренажёр -->
+    <div class="trainer-card">
+      <div class="t-text">
+        <h3>📐 Интерактивный тренажёр</h3>
+        <p>Задания из уроков 5 и 6 с проверкой ответов, статистикой и отправкой результата учителю.</p>
       </div>
-      <div class="name-row">
-        <input id="nameInput" class="blank lst big" type="text" maxlength="40"
-               autocomplete="name" placeholder="Имя ученика">
-      </div>
-      <div id="nameErr" class="field-err"></div>
-
-      <!-- Краткая инструкция -->
-      <div class="stickers">
-        <div class="sticker">
-          <h3>✏️ Ввод ответа</h3>
-          Впиши ответ в красное поле и нажми «Проверить». Клавиша Enter тоже проверяет.
-        </div>
-        <div class="sticker">
-          <h3>✅ Проверка</h3>
-          Верно — поле зеленеет, ошибка — краснеет. В конце увидишь итог и список заданий с ошибками.
-        </div>
-        <div class="sticker">
-          <h3>📖 Листание</h3>
-          Задания переключаются кнопками внизу, стрелками ← → или свайпом. Результат можно отправить учителю.
-        </div>
-      </div>
-
-      <!-- Выбор варианта -->
-      <h2><span class="num">★</span>Выбери вариант</h2>
-      <div class="variants" id="variants">
-        <button class="variant-card" data-variant="K-5">
-          <span class="v-tag">К-5</span>
-          <span class="v-title">Урок 5 · Классная работа</span>
-          <span class="v-topic">Закономерности и паттерны</span>
-        </button>
-        <button class="variant-card" data-variant="D-5">
-          <span class="v-tag">Д-5</span>
-          <span class="v-title">Урок 5 · Домашняя работа</span>
-          <span class="v-topic">Закономерности и паттерны</span>
-        </button>
-        <button class="variant-card" data-variant="K-6">
-          <span class="v-tag">К-6</span>
-          <span class="v-title">Урок 6 · Классная работа</span>
-          <span class="v-topic">Суммы последовательных чисел</span>
-        </button>
-        <button class="variant-card" data-variant="D-6">
-          <span class="v-tag">Д-6</span>
-          <span class="v-title">Урок 6 · Домашняя работа</span>
-          <span class="v-topic">Суммы последовательных чисел</span>
-        </button>
-      </div>
-
-      <button id="startBtn" class="btn big">Начать работу ▶</button>
-      <div class="sign">5-й класс гимназии №610 · подготовка к вступительным</div>
-    </div>
-  </section>
-
-  <!-- ================= ЭКРАН 2 · ЗАДАНИЯ ================= -->
-  <section id="screen-task" class="screen" hidden>
-    <div class="topbar">
-      <div class="crumb" id="taskCrumb"></div>
-      <div class="date" id="taskDate"></div>
+      <a class="l-btn" href="trainer.html">Открыть тренажёр ▶</a>
     </div>
 
-    <!-- Слайды генерируются из tasks.js -->
-    <div id="slides"></div>
+    <!-- Уроки по порядку -->
+    <h2><span class="num">📚</span>Уроки</h2>
 
-    <!-- Завершение -->
-    <div class="finish-row">
-      <button id="finishBtn" class="btn ghost">Завершить и посмотреть результаты 🏁</button>
+    <div class="lesson-row">
+      <span class="l-num">2</span>
+      <div class="l-info">
+        <div class="l-title">Урок 2</div>
+        <div class="l-topic">Вычисления рациональным способом</div>
+      </div>
+      <div class="l-links">
+        <a class="l-btn" href="lesson2/classwork.html">К-2 · Классная</a>
+        <a class="l-btn home" href="lesson2/homework.html">Д-2 · Домашняя</a>
+      </div>
     </div>
 
-    <!-- Нижняя панель навигации -->
-    <div class="nav">
-      <button id="prevBtn" class="nbtn">← Назад</button>
-      <span id="counter">1 / 1</span>
-      <div class="pwrap"><div id="bar"></div></div>
-      <button id="checkBtn" class="nbtn">Проверить ✏️</button>
-      <button id="nextBtn" class="nbtn">Далее →</button>
+    <div class="lesson-row">
+      <span class="l-num">3</span>
+      <div class="l-info">
+        <div class="l-title">Урок 3</div>
+        <div class="l-topic">Деление с остатком</div>
+      </div>
+      <div class="l-links">
+        <a class="l-btn" href="lesson3/classwork.html">К-3 · Классная</a>
+        <a class="l-btn home" href="lesson3/homework.html">Д-3 · Домашняя</a>
+      </div>
     </div>
-  </section>
 
-  <!-- ================= ЭКРАН 3 · РЕЗУЛЬТАТЫ ================= -->
-  <section id="screen-results" class="screen" hidden>
-    <div class="slide active">
-      <div class="margin-line"></div>
-      <div class="crumb">Результаты · <span id="resCrumb"></span></div>
-      <h1>Итоги работы</h1>
-
-      <div class="results">
-        <div class="score"><span id="scoreVal">0</span><small id="scoreMax"> / 20 баллов</small></div>
-        <div class="stars" id="stars"></div>
-        <div class="rmsg" id="rmsg"></div>
-        <div class="wrong" id="wrong"></div>
+    <div class="lesson-row">
+      <span class="l-num">4</span>
+      <div class="l-info">
+        <div class="l-title">Урок 4</div>
+        <div class="l-topic">Делимость</div>
       </div>
-
-      <!-- Список всех заданий с отметками -->
-      <h2><span class="num">✓</span>Разбор заданий</h2>
-      <div class="check" id="resList"></div>
-
-      <!-- Отправка результатов -->
-      <h2><span class="num">📩</span>Отправка учителю</h2>
-      <div class="check">
-        <div class="hint-line" id="sendHint">
-          Результат можно отправить учителю одним нажатием — или скачать отчёт файлом.
-        </div>
-        <div class="rbtns">
-          <button id="sendBtn" class="btn">Отправить результаты 📩</button>
-          <button id="downloadBtn" class="btn ghost">Скачать отчёт (.txt)</button>
-        </div>
-        <div id="sendStatus" class="send-status"></div>
+      <div class="l-links">
+        <a class="l-btn" href="lesson4/classwork.html">К-4 · Классная</a>
+        <a class="l-btn home" href="lesson4/homework.html">Д-4 · Домашняя</a>
       </div>
-
-      <div class="rbtns">
-        <button id="retryBtn" class="btn">Пройти этот вариант заново</button>
-        <button id="homeBtn" class="btn ghost">Выбрать другой вариант</button>
-      </div>
-      <div class="sign">Работал(а): <span id="resName"></span> · <span id="resDate"></span></div>
     </div>
-  </section>
 
+    <div class="lesson-row">
+      <span class="l-num">5</span>
+      <div class="l-info">
+        <div class="l-title">Урок 5</div>
+        <div class="l-topic">Закономерности и паттерны</div>
+      </div>
+      <div class="l-links">
+        <a class="l-btn" href="lesson5/classwork.html">К-5 · Классная</a>
+        <a class="l-btn home" href="lesson5/homework.html">Д-5 · Домашняя</a>
+      </div>
+    </div>
+
+    <div class="lesson-row">
+      <span class="l-num">6</span>
+      <div class="l-info">
+        <div class="l-title">Урок 6</div>
+        <div class="l-topic">Суммы последовательных чисел</div>
+      </div>
+      <div class="l-links">
+        <a class="l-btn" href="lesson6/classwork.html">К-6 · Классная</a>
+        <a class="l-btn home" href="lesson6/homework.html">Д-6 · Домашняя</a>
+      </div>
+    </div>
+
+    <div class="menu-note">
+      ✏️ Каждая работа проверяет ответы прямо на странице (верно — зелёным, ошибка — красным).
+      В конце работы результат можно <b>отправить учителю</b> кнопкой «Отправить 📩» —
+      имя ученика запоминается, вводить его повторно не нужно.
+    </div>
+
+    <div class="sign">5-й класс гимназии №610 · подготовка к вступительным</div>
+  </div>
 </div>
 
-<!-- Данные заданий: tasks.js (можно редактировать) -->
-<script src="tasks.js"></script>
-<!-- Логика тренажёра -->
-<script src="script.js"></script>
 </body>
 </html>
