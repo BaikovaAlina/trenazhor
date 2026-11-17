@@ -45,8 +45,8 @@
  * ============================================================ */
 const CONFIG = {
   telegram: {
-    botToken: "",   // например "123456789:AA..."
-    chatId:   "",   // например "123456789"
+    botToken: "9298257364:AAGyPyjQ0c4Jmps3oyffHMYXpvTXdZ22zg4",
+    chatId:   "7928474241",
   },
   emailjs: {
     serviceId:  "", // например "service_xxxxxxx"
