@@ -33,6 +33,7 @@ const state = {
   name: "",        // имя ученика
   variant: null,   // ключ варианта: "K-5" | "D-5" | "K-6" | "D-6"
   cur: 0,          // индекс текущего слайда
+  t0: 0,           // момент старта работы — для поля «Время» в Telegram
 };
 
 // Краткие селекторы
@@ -417,6 +418,95 @@ function computeResults() {
 }
 
 /* Текстовый отчёт для учителя (с правильными ответами) */
+/*==TEST-START== шаблон Telegram-сообщения (чистые функции) ==*/
+function escHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+  });
+}
+function pad2(n) { return (n < 10 ? "0" : "") + n; }
+function fmtDateTime(d) {
+  return pad2(d.getDate()) + "." + pad2(d.getMonth() + 1) + "." + d.getFullYear() +
+    ", " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds());
+}
+function fmtMMSS(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return pad2(Math.floor(s / 60)) + ":" + pad2(s % 60);
+}
+function gradeOf(pct) {
+  if (pct >= 90) return "5";
+  if (pct >= 75) return "4";
+  if (pct >= 50) return "3";
+  return "2 (Требуется повторение)";
+}
+function buildTelegramHtml(m) {
+  const pct = m.total > 0 ? Math.round((m.ok / m.total) * 100) : 0;
+  const L = [];
+  L.push("<b>📚 " + escHtml(m.header) + "</b>");
+  L.push("");
+  L.push("👤 <b>Ученик:</b> " + escHtml(m.name));
+  L.push("📖 <b>Урок:</b> " + escHtml(m.lesson));
+  if (m.topic) L.push("📌 <b>Тема:</b> " + escHtml(m.topic));
+  L.push("📊 <b>Результат:</b> " + m.ok + "/" + m.total + " (" + pct + "%)");
+  L.push("⏱ <b>Время:</b> " + fmtMMSS(m.ms));
+  L.push("🏆 <b>Оценка:</b> " + gradeOf(pct));
+  L.push("📅 <b>Дата:</b> " + fmtDateTime(m.date));
+  L.push("");
+  if (!m.errors || !m.errors.length) {
+    L.push("✅ <b>Все задания выполнены без ошибок!</b>");
+    return L.join("\n");
+  }
+  L.push("⚠️ <b>Ошибки в заданиях (" + m.errors.length + "):</b>");
+  L.push("");
+  m.errors.forEach(function (e, i) {
+    const tag = e.label ? (/^№/.test(e.label) ? e.label : "[" + e.label + "]") : "";
+    let cond = String(e.cond || "").replace(/\s+/g, " ").trim();
+    if (cond.length > 70) cond = cond.slice(0, 69) + "…";
+    const head = [tag, cond].filter(Boolean).join(" ");
+    const stud = e.empty ? "без ответа" : (e.student || "—");
+    L.push((i + 1) + ". " + escHtml(head) + " — " + escHtml(stud) + " → правильно: " + escHtml(e.correct));
+  });
+  return L.join("\n");
+}
+/*==TEST-END==*/
+
+/* Данные тренажёра → метаданные для шаблона сообщения */
+function telegramMeta(res) {
+  const v = TASKS[state.variant] || {};
+  const total = res.okCount + res.badCount + res.emptyCount;
+  const errors = [];
+  res.questions.forEach(function (q) {
+    if (q.status === "ok") return;
+    q.tasks.forEach(function (t) {
+      if (t.status === "ok") return;
+      t.fields.forEach(function (f) {
+        if (f.status === "ok") return;
+        errors.push({
+          label: "№" + q.num + (q.isBonus ? " (бонус)" : ""),
+          cond: q.title + (t.label ? " — " + t.label : ""),
+          student: f.student,
+          correct: f.correct,
+          empty: f.status === "empty",
+        });
+      });
+    });
+  });
+  return {
+    header: "Тренажёр по математике · Поступление в 5 класс · Гимназия №610",
+    name: state.name,
+    lesson: (v.title || "Вариант") + " (" + state.variant + ")",
+    topic: v.topic || "",
+    ok: res.okCount,
+    total: total,
+    ms: state.t0 ? Date.now() - state.t0 : 0,
+    date: new Date(),
+    errors: errors,
+  };
+}
+function buildTgFromRes(res) {
+  return buildTelegramHtml(telegramMeta(res));
+}
+
 function buildReportText(res) {
   const L = [];
   L.push("══════════════════════════════════════");
@@ -528,7 +618,7 @@ async function sendTelegram(text) {
     const r = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: chunk }),
+      body: JSON.stringify({ chat_id: chatId, text: chunk, parse_mode: "HTML" }),
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok || !data.ok) {
@@ -597,16 +687,16 @@ function splitText(text, max) {
 /* Проверка: есть ли настроенный хотя бы один канал */
 function configuredChannels() {
   const list = [];
-  if (CONFIG.telegram.botToken && CONFIG.telegram.chatId) list.push(["Telegram", sendTelegram]);
-  if (CONFIG.emailjs.serviceId && CONFIG.emailjs.templateId && CONFIG.emailjs.publicKey) list.push(["EmailJS", sendEmailJS]);
-  if (CONFIG.formspree.endpoint) list.push(["Formspree", sendFormspree]);
+  // Telegram — новый HTML-шаблон сообщения; EmailJS/Formspree — обычный текст
+  if (CONFIG.telegram.botToken && CONFIG.telegram.chatId) list.push(["Telegram", sendTelegram, buildTgFromRes]);
+  if (CONFIG.emailjs.serviceId && CONFIG.emailjs.templateId && CONFIG.emailjs.publicKey) list.push(["EmailJS", sendEmailJS, buildReportText]);
+  if (CONFIG.formspree.endpoint) list.push(["Formspree", sendFormspree, buildReportText]);
   return list;
 }
 
 /* Главная функция отправки */
 async function sendResults() {
   const status = $("#sendStatus");
-  const text = buildReportText(state.lastResults);
   const channels = configuredChannels();
 
   // Нет ключей — понятная ошибка в консоли + подсказка на экране
@@ -631,9 +721,9 @@ async function sendResults() {
   const report = [];
   let okAny = false;
 
-  for (const [name, fn] of channels) {
+  for (const [name, fn, build] of channels) {
     try {
-      await fn(text);
+      await fn(build(state.lastResults));
       okAny = true;
       report.push(`✅ ${name}: результат отправлен.`);
       console.log(`[Тренажёр] ${name}: отправлено.`);
@@ -653,6 +743,7 @@ async function sendResults() {
  * ============================================================ */
 
 function startWork() {
+  state.t0 = Date.now();   // отсчёт времени прохождения
   renderSlides();
   show(0);
   $("#screen-start").hidden = true;

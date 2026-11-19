@@ -20,6 +20,9 @@
 (function () {
   "use strict";
 
+  // Момент открытия работы — для поля «Время» в Telegram-сообщении
+  const STARTED_AT = Date.now();
+
   // ---------- Нормализация ответов (та же логика, что в тетради) ----------
   function canon(v) {
     v = (v || "").toLowerCase().replace(/\s+/g, "").replace(/[×∙⋅*xх]/g, "·");
@@ -54,61 +57,104 @@
     const inputs = Array.prototype.slice.call(
       document.querySelectorAll("input[data-a]")
     );
-    const groups = {};   // группы оценивания: data-g + вес data-w
-    const lines = [];    // строки отчёта
+    const errors = [];   // неверные и пустые ответы — для списка ошибок
     let okCount = 0, badCount = 0, emptyCount = 0;
 
     inputs.forEach(function (inp) {
-      const label = inp.dataset.label || inp.dataset.g || "?";
       const filled = hasValue(inp);
       const ok = filled && isInputOk(inp);
-      const g = inp.dataset.g || label;
-      if (!groups[g]) groups[g] = { w: parseFloat(inp.dataset.w) || 0, ok: true, has: false };
-      groups[g].has = true;
-      if (!ok) groups[g].ok = false;
+      if (ok) { okCount++; return; }
 
-      let mark = "·", verdict = "без ответа";
-      if (ok) { mark = "✓"; verdict = ""; okCount++; }
-      else if (filled) { mark = "✗"; verdict = " (правильно: " + (inp.dataset.a || "").split("|")[0] + ")"; badCount++; }
-      else emptyCount++;
-      lines.push(
-        "  " + mark + " [" + label + "] " + (inp.value.trim() || "—") + verdict
-      );
+      // Краткое условие — текст подписи рядом с полем
+      const task = inp.closest ? inp.closest(".task") : null;
+      const lbl = task && task.querySelector(".lbl");
+      errors.push({
+        label: inp.dataset.label || inp.dataset.g || "",
+        cond: lbl ? lbl.textContent : "",
+        student: inp.value.trim(),
+        correct: (inp.dataset.a || "").split("|")[0],
+        empty: !filled,
+      });
+      if (filled) badCount++; else emptyCount++;
     });
 
-    let score = 0, maxScore = 0;
-    Object.keys(groups).forEach(function (g) {
-      maxScore += groups[g].w;
-      if (groups[g].ok && groups[g].has) score += groups[g].w;
-    });
     return {
-      lines: lines, score: Math.round(score * 10) / 10,
-      maxScore: Math.round(maxScore * 10) / 10,
+      errors: errors,
       okCount: okCount, badCount: badCount, emptyCount: emptyCount,
       total: inputs.length,
     };
   }
 
-  // ---------- Текст отчёта ----------
+  /*==TEST-START== шаблон Telegram-сообщения (чистые функции) ==*/
+  function escHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function fmtDateTime(d) {
+    return pad2(d.getDate()) + "." + pad2(d.getMonth() + 1) + "." + d.getFullYear() +
+      ", " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds());
+  }
+  function fmtMMSS(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    return pad2(Math.floor(s / 60)) + ":" + pad2(s % 60);
+  }
+  function gradeOf(pct) {
+    if (pct >= 90) return "5";
+    if (pct >= 75) return "4";
+    if (pct >= 50) return "3";
+    return "2 (Требуется повторение)";
+  }
+  function buildTelegramHtml(m) {
+    const pct = m.total > 0 ? Math.round((m.ok / m.total) * 100) : 0;
+    const L = [];
+    L.push("<b>📚 " + escHtml(m.header) + "</b>");
+    L.push("");
+    L.push("👤 <b>Ученик:</b> " + escHtml(m.name));
+    L.push("📖 <b>Урок:</b> " + escHtml(m.lesson));
+    if (m.topic) L.push("📌 <b>Тема:</b> " + escHtml(m.topic));
+    L.push("📊 <b>Результат:</b> " + m.ok + "/" + m.total + " (" + pct + "%)");
+    L.push("⏱ <b>Время:</b> " + fmtMMSS(m.ms));
+    L.push("🏆 <b>Оценка:</b> " + gradeOf(pct));
+    L.push("📅 <b>Дата:</b> " + fmtDateTime(m.date));
+    L.push("");
+    if (!m.errors || !m.errors.length) {
+      L.push("✅ <b>Все задания выполнены без ошибок!</b>");
+      return L.join("\n");
+    }
+    L.push("⚠️ <b>Ошибки в заданиях (" + m.errors.length + "):</b>");
+    L.push("");
+    m.errors.forEach(function (e, i) {
+      const tag = e.label ? (/^№/.test(e.label) ? e.label : "[" + e.label + "]") : "";
+      let cond = String(e.cond || "").replace(/\s+/g, " ").trim();
+      if (cond.length > 70) cond = cond.slice(0, 69) + "…";
+      const head = [tag, cond].filter(Boolean).join(" ");
+      const stud = e.empty ? "без ответа" : (e.student || "—");
+      L.push((i + 1) + ". " + escHtml(head) + " — " + escHtml(stud) + " → правильно: " + escHtml(e.correct));
+    });
+    return L.join("\n");
+  }
+  /*==TEST-END==*/
+
+  // ---------- Отчёт для Telegram (данные страницы + шаблон) ----------
+  const TG_HEADER = "Тренажёр по математике · Поступление в 5 класс · Гимназия №610";
+
   function buildReport(name) {
     const r = collect();
-    const L = [];
-    L.push("══════════════════════════════════════");
-    L.push(document.title);
-    L.push("══════════════════════════════════════");
-    L.push("Ученик: " + name);
-    L.push("Дата: " + new Date().toLocaleString("ru-RU", {
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    }));
-    L.push("");
-    L.push("ИТОГ: " + r.okCount + " из " + r.total + " верно" +
-      " (ошибок: " + r.badCount + ", без ответа: " + r.emptyCount + ")");
-    L.push("БАЛЛЫ: " + r.score + " из " + r.maxScore);
-    L.push("");
-    L.push("ОТВЕТЫ:");
-    Array.prototype.push.apply(L, r.lines);
-    return L.join("\n");
+    const t = document.title || "";
+    const i = t.indexOf(" — ");
+    return buildTelegramHtml({
+      header: TG_HEADER,
+      name: name,
+      lesson: i >= 0 ? t.slice(0, i) : t,
+      topic: i >= 0 ? t.slice(i + 3) : "",
+      ok: r.okCount,
+      total: r.total,
+      ms: Date.now() - STARTED_AT,
+      date: new Date(),
+      errors: r.errors,
+    });
   }
 
   // ---------- Отправка в Telegram ----------
@@ -140,7 +186,7 @@
         return fetch("https://api.telegram.org/bot" + tg.botToken + "/sendMessage", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: tg.chatId, text: chunk }),
+          body: JSON.stringify({ chat_id: tg.chatId, text: chunk, parse_mode: "HTML" }),
         }).then(function (r) {
           return r.json().then(function (d) {
             if (!r.ok || !d.ok) throw new Error(d.description || ("HTTP " + r.status));
